@@ -1,0 +1,110 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Threading;
+
+namespace fly_project
+{
+    public partial class batch_Inspection : Form
+    {
+
+        string url = global_variable.url_line;
+        MyFlask myFlask = new MyFlask();
+        string path = null;
+        int defect_sum = 0;
+        int defect_num1 = 0;
+        int defect_num2 = 0;
+        bool state = false;
+        int progress = 0;
+        bool IsFirst = true;
+
+        public batch_Inspection()
+        {
+            InitializeComponent();
+        }
+
+        private void folderBrowserDialog1_HelpRequest(object sender, EventArgs e)
+        {
+
+        }
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (this.folderBrowserDialog1.ShowDialog() == DialogResult.OK)
+            {
+                path = this.folderBrowserDialog1.SelectedPath;
+                selected_path.Text = path;              
+            }
+            IsFirst = true;
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            state = true; //开始按钮，点击之后timer可以运行
+        }
+
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            state = false; 
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            if (IsFirst)
+            {
+                var files = Directory.GetFiles(path, "*.jpg");
+                //进度条相关的配置
+                pbrData.Style = ProgressBarStyle.Continuous;
+                pbrData.Maximum = files.Length;
+                pbrData.Minimum = 0;
+                pbrData.Value = 0;
+                pbrData.Step = 1;
+            }
+            //在一个循环中完成所有图片的检测
+            if (state)
+            {
+                try
+                {
+                    foreach (var file in files)
+                    {
+                        string jsonpara = "str";
+                        string request_content = myFlask.RequestsPost(url, file);
+                        Thread.Sleep(10);
+                        string request_str = myFlask.RequestsPost(url, jsonpara);
+                        string[] str = request_str.Split('#');
+                        //MessageBox.Show(str[1]);
+                        if (str[1] == "foreign_body")
+                        {
+                            defect_num1 += Convert.ToInt32(str[2]);
+                            //MessageBox.Show("OK");
+                        }
+                        if (str[3] == "broken_strand")
+                        {
+                            defect_num2 += Convert.ToInt32(str[4]);
+                        }
+                        pbrData.PerformStep();  // 进度条增加一个步长
+                    }
+                    pbrData.Value = pbrData.Maximum;  //循环完成后让进度拉满
+                                                      //检测完成后，更新显示控件
+                    defect_sum = defect_num1 + defect_num2;
+                    defect_sum_text.Text = Convert.ToString(defect_sum);
+                    defect_num1_text.Text = Convert.ToString(defect_num1);
+                    defect_num2_text.Text = Convert.ToString(defect_num2);
+
+                }
+                catch
+                {
+
+                }
+            }
+
+        }
+    }
+}
